@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package ppv.v1;
+
+option go_package = "github.com/yasushisakai/ppv-service/gen/go/ppv/v1;ppvpb";
+
+service PPVService {
+  rpc RequestCompute(ComputeRequest) returns (ComputeResponse) {}
+
+  rpc WaitCompute(WaitRequest) returns (stream ComputeStatus) {}
+
+  rpc ListJobs(google.protobuf.Empty) returns (JobList) {}
+}
+
+message ComputeRequest {
+
+  int32 n_delegate = 1;
+  int32 n_policy = 2;
+  int32 n_interm = 3;
+
+  repeated double matrix = 4;
+}
+
+message ComputeResponse { string job_id = 1; }
+
+message WaitRequest { string job_id = 1; }
+
+message JobList { repeated string ids = 1; }
+
+message ComputeStatus {
+
+  enum Status {
+    UNSPECIFIED = 0;
+    QUEUED = 1;
+    PROCESSING = 2;
+    FINISHED = 3;
+  }
+
+  Status status = 1;
+
+  /* if FINISHED */
+  repeated double consensus = 2; // len == n_policy
+  repeated double influence = 3; // len == n_delegate + n_interm
+}

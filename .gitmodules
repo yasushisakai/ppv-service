@@ -1,3 +1,6 @@
 [submodule "ppv"]
 	path = ppv
 	url = git@github.com:yasushisakai/ppv
+[submodule "proto"]
+	path = proto
+	url = git@github.com:yasushisakai/ppv-proto

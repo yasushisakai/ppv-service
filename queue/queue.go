@@ -85,7 +85,7 @@ func (q *Queue) worker(ctx context.Context) {
 			status := ppvpb.ComputeStatus{Status: ppvpb.ComputeStatus_PROCESSING}
 			q.hub.Broadcast(job.ID, &status)
 
-			consensus, influence := ppv.Compute(
+			consensus, influence, iteration, didConverge := ppv.Compute(
 				job.Request.Matrix,
 				int(job.Request.NDelegate),
 				int(job.Request.NPolicy),
@@ -93,11 +93,14 @@ func (q *Queue) worker(ctx context.Context) {
 			)
 
 			status = ppvpb.ComputeStatus{
-				Status:    ppvpb.ComputeStatus_FINISHED,
-				Consensus: consensus,
-				Influence: influence,
+				Status:      ppvpb.ComputeStatus_FINISHED,
+				Consensus:   consensus,
+				Influence:   influence,
+				Iteration:   int32(iteration),
+				DidConverge: didConverge,
 			}
-			q.hub.Broadcast(job.ID, &status)
+
+			// q.hub.Broadcast(job.ID, &status)
 
 		}
 	}

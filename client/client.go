@@ -31,7 +31,7 @@ func New(addr, port string, opts ...grpc.DialOption) (*ComputeClient, error) {
 func (c *ComputeClient) Compute(
 	ctx context.Context,
 	matrix []float64,
-	nDelegate, nPolicy, nInterm int) ([]float64, []float64, error) {
+	nDelegate, nPolicy, nInterm int) ([]float64, []float64, int32, bool, error) {
 
 	// submit request
 	res, err := c.cl.RequestCompute(ctx, &ppvpb.ComputeRequest{
@@ -41,7 +41,7 @@ func (c *ComputeClient) Compute(
 		NInterm:   int32(nInterm)})
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, false, err
 	}
 
 	log.Printf("Job Submitted ID: %s", res.JobId)
@@ -50,20 +50,20 @@ func (c *ComputeClient) Compute(
 	stream, err := c.cl.WaitCompute(ctx, &ppvpb.WaitRequest{JobId: res.JobId})
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, 0, false, err
 	}
 
 	// waiting
 	for {
 		st, err := stream.Recv()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, 0, false, err
 		}
 
 		switch st.Status {
 		case ppvpb.ComputeStatus_FINISHED:
 			log.Println("Job Finished")
-			return st.Consensus, st.Influence, nil
+			return st.Consensus, st.Influence, st.Iteration, st.DidConverge, nil
 		}
 	}
 }

@@ -100,7 +100,7 @@ func (q *Queue) worker(ctx context.Context) {
 				DidConverge: didConverge,
 			}
 
-			// q.hub.Broadcast(job.ID, &status)
+			q.hub.Broadcast(job.ID, &status)
 
 		}
 	}

@@ -32,6 +32,8 @@ func main() {
 	}
 
 	// TODO: This should checked in the server as well
+	log.Printf("[DEBUG] matrix: %v", matrix)
+	log.Printf("[DEBUG] node num: %d", *nDel+*nPol+*nInt)
 	if (*nDel + *nPol + *nInt) != int(math.Sqrt(float64(len(matrix)))) {
 		log.Fatalf("[ERROR] matrix size mismatch")
 	}
@@ -45,7 +47,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	consensus, influence, err := client.Compute(ctx, matrix, *nDel, *nPol, *nInt)
+	consensus, influence, iteration, didConverge, err := client.Compute(ctx, matrix, *nDel, *nPol, *nInt)
 
 	if err != nil {
 		log.Fatal(err)
@@ -53,4 +55,6 @@ func main() {
 
 	fmt.Println("Consensus:", consensus)
 	fmt.Println("Influence:", influence)
+	fmt.Println("Iteration:", iteration)
+	fmt.Println("Did Converge:", didConverge)
 }

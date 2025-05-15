@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"io"
+	"log"
 
 	ppvpb "github.com/yasushisakai/ppv-service/gen/go/ppv/v1"
 	"github.com/yasushisakai/ppv-service/hub"
@@ -23,6 +24,8 @@ func (s *ComputeServer) RequestCompute(ctx context.Context, req *ppvpb.ComputeRe
 	if err != nil {
 		return nil, err
 	}
+
+	log.Printf("job %s enqueued", jobID)
 
 	return &ppvpb.ComputeResponse{JobId: jobID}, nil
 }

@@ -15,7 +15,13 @@ type ComputeClient struct {
 
 func New(addr, port string, opts ...grpc.DialOption) (*ComputeClient, error) {
 
-	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	opts = append(opts, 
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(600*1024*1024), // 600MB
+			grpc.MaxCallSendMsgSize(600*1024*1024), // 600MB
+		),
+	)
 
 	address := "passthrough:///" + addr + ":" + port
 

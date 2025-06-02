@@ -33,7 +33,10 @@ func main() {
 
 	log.Println("queue started")
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.MaxRecvMsgSize(600*1024*1024), // 600MB
+		grpc.MaxSendMsgSize(600*1024*1024), // 600MB
+	)
 	reflection.Register(grpcServer)
 	ppvpb.RegisterPPVServiceServer(grpcServer, &server.ComputeServer{Q: queue, H: hub})
 

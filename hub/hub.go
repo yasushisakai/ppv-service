@@ -70,7 +70,7 @@ func (h *Hub) Register(jobID string) (<-chan *ppvpb.ComputeStatus, func(), error
 		for i, c := range h.subs[jobID] {
 			if c == ch {
 				// close the ch
-				h.subs[jobID] = append(list[:i], list[i+i:]...)
+				h.subs[jobID] = append(list[:i], list[i+1:]...)
 				break
 			}
 		}

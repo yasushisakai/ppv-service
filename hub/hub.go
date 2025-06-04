@@ -2,6 +2,7 @@ package hub
 
 import (
 	"sync"
+	"time"
 
 	ppvpb "github.com/yasushisakai/ppv-service/gen/go/ppv/v1"
 	"google.golang.org/grpc/codes"
@@ -70,11 +71,10 @@ func (h *Hub) Register(jobID string) (<-chan *ppvpb.ComputeStatus, func(), error
 		for i, c := range h.subs[jobID] {
 			if c == ch {
 				// close the ch
-				h.subs[jobID] = append(list[:i], list[i+i:]...)
+				h.subs[jobID] = append(list[:i], list[i+1:]...)
 				break
 			}
 		}
-		close(ch)
 	}
 
 	return ch, unregister, nil
@@ -95,6 +95,7 @@ func (h *Hub) Broadcast(jobID string, status *ppvpb.ComputeStatus) {
 	}
 
 	if status.Status == ppvpb.ComputeStatus_FINISHED {
+		time.Sleep(100 * time.Millisecond) // give some time to send the status
 		h.mu.Lock()
 		h.finished[jobID] = status
 		delete(h.active, jobID)

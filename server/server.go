@@ -45,6 +45,7 @@ func (s *ComputeServer) WaitCompute(req *ppvpb.WaitRequest, stream ppvpb.PPVServ
 
 		case st, ok := <-ch:
 			if !ok {
+				log.Printf("channel closed for job %s", req.JobId)
 				return nil
 			}
 

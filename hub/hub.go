@@ -100,15 +100,30 @@ func (h *Hub) Broadcast(jobID string, status *ppvpb.ComputeStatus) {
 	}
 
 	if status.Status == ppvpb.ComputeStatus_FINISHED {
-		time.Sleep(100 * time.Millisecond) // give some time to send the status
+		// Store the finished status immediately for late subscribers
 		h.mu.Lock()
 		h.finished[jobID] = status
 		delete(h.active, jobID)
-		for _, ch := range h.subs[jobID] {
-			close(ch)
-		}
-		delete(h.subs, jobID)
 		h.mu.Unlock()
+		
+		// Keep channels open for 30 seconds to allow late subscribers
+		go func() {
+			time.Sleep(30 * time.Second)
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			for _, ch := range h.subs[jobID] {
+				close(ch)
+			}
+			delete(h.subs, jobID)
+			
+			// Clean up finished job after 5 minutes
+			time.AfterFunc(5*time.Minute, func() {
+				h.mu.Lock()
+				defer h.mu.Unlock()
+				delete(h.finished, jobID)
+				log.Printf("Cleaned up finished job %s from cache", jobID)
+			})
+		}()
 	}
 
 }

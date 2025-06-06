@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"log"
 	"runtime"
 
 	"github.com/google/uuid"
@@ -69,6 +70,8 @@ func (q *Queue) Start(ctx context.Context, n int) {
 		n = runtime.NumCPU()
 	}
 
+	log.Printf("Starting %d queue workers", n)
+
 	for i := 0; i < n; i++ {
 		go q.worker(ctx)
 	}
@@ -76,11 +79,14 @@ func (q *Queue) Start(ctx context.Context, n int) {
 }
 
 func (q *Queue) worker(ctx context.Context) {
+	log.Println("Worker started")
 	for {
 		select {
 		case <-ctx.Done():
+			log.Println("Worker stopping due to context cancellation")
 			return
 		case job := <-q.jobs:
+			log.Printf("Worker processing job %s", job.ID)
 
 			status := ppvpb.ComputeStatus{Status: ppvpb.ComputeStatus_PROCESSING}
 			q.hub.Broadcast(job.ID, &status)

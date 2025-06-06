@@ -23,7 +23,7 @@ RUN mkdir -p gen/go && \
 # Ensure libppv is built with the correct flags
 RUN cd ppv/libppv && \
     make clean && \
-    make && \
+    make DEBUG=1 && \
     cd ../..
 
 # Build the Go service

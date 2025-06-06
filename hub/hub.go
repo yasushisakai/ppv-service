@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"log"
 	"sync"
 	"time"
 
@@ -86,11 +87,15 @@ func (h *Hub) Broadcast(jobID string, status *ppvpb.ComputeStatus) {
 	list := append([]chan *ppvpb.ComputeStatus(nil), h.subs[jobID]...)
 	h.mu.RUnlock()
 
+	log.Printf("Broadcasting status %v to %d subscribers for job %s", status.Status, len(list), jobID)
+
 	// send it to subs
 	for _, ch := range list {
 		select {
 		case ch <- status:
+			log.Printf("Successfully sent status to subscriber for job %s", jobID)
 		default:
+			log.Printf("Failed to send status to subscriber for job %s (channel full or closed)", jobID)
 		}
 	}
 

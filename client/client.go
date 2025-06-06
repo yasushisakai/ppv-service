@@ -63,10 +63,17 @@ func (c *ComputeClient) Compute(
 	for {
 		st, err := stream.Recv()
 		if err != nil {
+			log.Printf("Error receiving stream: %v", err)
 			return nil, nil, 0, false, err
 		}
 
+		log.Printf("Received status: %v for job %s", st.Status, res.JobId)
+
 		switch st.Status {
+		case ppvpb.ComputeStatus_QUEUED:
+			log.Println("Job Queued")
+		case ppvpb.ComputeStatus_PROCESSING:
+			log.Println("Job Processing")
 		case ppvpb.ComputeStatus_FINISHED:
 			log.Println("Job Finished")
 			return st.Consensus, st.Influence, st.Iteration, st.DidConverge, nil

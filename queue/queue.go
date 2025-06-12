@@ -107,19 +107,26 @@ func (q *Queue) worker(ctx context.Context) {
 				status := ppvpb.ComputeStatus{Status: ppvpb.ComputeStatus_PROCESSING}
 				q.hub.Broadcast(job.ID, &status)
 
-				consensus, influence, iteration, didConverge := ppv.Compute(
+				consensus, influence, iteration, didConverge, err := ppv.Compute(
 					req.Matrix,
 					int(req.NDelegate),
 					int(req.NPolicy),
 					int(req.NInterm),
 				)
 
-				status = ppvpb.ComputeStatus{
-					Status:      ppvpb.ComputeStatus_FINISHED,
-					Consensus:   consensus,
-					Influence:   influence,
-					Iteration:   int32(iteration),
-					DidConverge: didConverge,
+				if err != nil {
+					status = ppvpb.ComputeStatus{
+						Status:       ppvpb.ComputeStatus_ERROR,
+						ErrorMessage: err.Error(),
+					}
+				} else {
+					status = ppvpb.ComputeStatus{
+						Status:      ppvpb.ComputeStatus_FINISHED,
+						Consensus:   consensus,
+						Influence:   influence,
+						Iteration:   int32(iteration),
+						DidConverge: didConverge,
+					}
 				}
 
 				q.hub.Broadcast(job.ID, &status)
@@ -128,11 +135,18 @@ func (q *Queue) worker(ctx context.Context) {
 				dotStatus := ppvpb.DotStatus{Status: ppvpb.DotStatus_PROCESSING}
 				q.hub.BroadcastDot(job.ID, &dotStatus)
 
-				output := ppv.Dot(req.A, req.B, int(req.Size))
+				output, err := ppv.Dot(req.A, req.B, int(req.Size))
 
-				dotStatus = ppvpb.DotStatus{
-					Status: ppvpb.DotStatus_FINISHED,
-					Output: output,
+				if err != nil {
+					dotStatus = ppvpb.DotStatus{
+						Status:       ppvpb.DotStatus_ERROR,
+						ErrorMessage: err.Error(),
+					}
+				} else {
+					dotStatus = ppvpb.DotStatus{
+						Status: ppvpb.DotStatus_FINISHED,
+						Output: output,
+					}
 				}
 
 				q.hub.BroadcastDot(job.ID, &dotStatus)

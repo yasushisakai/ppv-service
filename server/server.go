@@ -71,3 +71,49 @@ func (s *ComputeServer) ListJobs(context.Context, *emptypb.Empty) (*ppvpb.JobLis
 
 	return jobList, nil
 }
+
+func (s *ComputeServer) RequestDot(ctx context.Context, req *ppvpb.DotRequest) (*ppvpb.DotResponse, error) {
+
+	jobID, err := s.Q.Enqueue(ctx, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("dot job %s enqueued", jobID)
+
+	return &ppvpb.DotResponse{JobId: jobID}, nil
+}
+
+func (s *ComputeServer) WaitDot(req *ppvpb.WaitRequest, stream ppvpb.PPVService_WaitDotServer) error {
+
+	ch, done, err := s.H.RegisterDot(req.JobId)
+
+	if err != nil {
+		return err
+	}
+
+	defer done()
+
+	for {
+		select {
+
+		case st, ok := <-ch:
+			if !ok {
+				log.Printf("channel closed for dot job %s", req.JobId)
+				return nil
+			}
+
+			// if something, send it to the stream
+			if err := stream.Send(st); err != nil {
+				if err == io.EOF {
+					return nil
+				}
+				return err
+			}
+
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		}
+	}
+}

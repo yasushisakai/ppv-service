@@ -80,3 +80,50 @@ func (c *ComputeClient) Compute(
 		}
 	}
 }
+
+func (c *ComputeClient) Dot(
+	ctx context.Context,
+	a []float64,
+	b []float64,
+	size int) ([]float64, error) {
+
+	// submit request
+	res, err := c.cl.RequestDot(ctx, &ppvpb.DotRequest{
+		A:    a,
+		B:    b,
+		Size: int32(size)})
+
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Dot Job Submitted ID: %s", res.JobId)
+
+	// wait request
+	stream, err := c.cl.WaitDot(ctx, &ppvpb.WaitRequest{JobId: res.JobId})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// waiting
+	for {
+		st, err := stream.Recv()
+		if err != nil {
+			log.Printf("Error receiving stream: %v", err)
+			return nil, err
+		}
+
+		log.Printf("Received dot status: %v for job %s", st.Status, res.JobId)
+
+		switch st.Status {
+		case ppvpb.DotStatus_QUEUED:
+			log.Println("Dot Job Queued")
+		case ppvpb.DotStatus_PROCESSING:
+			log.Println("Dot Job Processing")
+		case ppvpb.DotStatus_FINISHED:
+			log.Println("Dot Job Finished")
+			return st.Output, nil
+		}
+	}
+}

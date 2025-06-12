@@ -16,7 +16,7 @@ import (
 
 type Job struct {
 	ID      string
-	Request *ppvpb.ComputeRequest
+	Request interface{} // Can be *ppvpb.ComputeRequest or *ppvpb.DotRequest
 }
 
 type Queue struct {
@@ -31,7 +31,7 @@ func New(capacity int, h *hub.Hub) *Queue {
 	}
 }
 
-func (q *Queue) Enqueue(ctx context.Context, req *ppvpb.ComputeRequest) (string, error) {
+func (q *Queue) Enqueue(ctx context.Context, req interface{}) (string, error) {
 	jobID := uuid.NewString()
 	q.hub.Declare(jobID)
 	job := Job{
@@ -42,8 +42,15 @@ func (q *Queue) Enqueue(ctx context.Context, req *ppvpb.ComputeRequest) (string,
 	select {
 	// happy path
 	case q.jobs <- job:
-		status := ppvpb.ComputeStatus{Status: ppvpb.ComputeStatus_QUEUED}
-		q.hub.Broadcast(jobID, &status)
+		// Emit QUEUED status based on request type
+		switch req.(type) {
+		case *ppvpb.ComputeRequest:
+			status := ppvpb.ComputeStatus{Status: ppvpb.ComputeStatus_QUEUED}
+			q.hub.Broadcast(jobID, &status)
+		case *ppvpb.DotRequest:
+			dotStatus := ppvpb.DotStatus{Status: ppvpb.DotStatus_QUEUED}
+			q.hub.BroadcastDot(jobID, &dotStatus)
+		}
 		return jobID, nil
 	default:
 		// fall through
@@ -56,8 +63,15 @@ func (q *Queue) Enqueue(ctx context.Context, req *ppvpb.ComputeRequest) (string,
 	select {
 	// try again
 	case q.jobs <- job:
-		status := ppvpb.ComputeStatus{Status: ppvpb.ComputeStatus_QUEUED}
-		q.hub.Broadcast(jobID, &status)
+		// Emit QUEUED status based on request type
+		switch req.(type) {
+		case *ppvpb.ComputeRequest:
+			status := ppvpb.ComputeStatus{Status: ppvpb.ComputeStatus_QUEUED}
+			q.hub.Broadcast(jobID, &status)
+		case *ppvpb.DotRequest:
+			dotStatus := ppvpb.DotStatus{Status: ppvpb.DotStatus_QUEUED}
+			q.hub.BroadcastDot(jobID, &dotStatus)
+		}
 		return jobID, nil
 	case <-ctx.Done():
 		return "", status.Error(codes.DeadlineExceeded, "queue still full")
@@ -88,26 +102,44 @@ func (q *Queue) worker(ctx context.Context) {
 		case job := <-q.jobs:
 			log.Printf("Worker processing job %s", job.ID)
 
-			status := ppvpb.ComputeStatus{Status: ppvpb.ComputeStatus_PROCESSING}
-			q.hub.Broadcast(job.ID, &status)
+			switch req := job.Request.(type) {
+			case *ppvpb.ComputeRequest:
+				status := ppvpb.ComputeStatus{Status: ppvpb.ComputeStatus_PROCESSING}
+				q.hub.Broadcast(job.ID, &status)
 
-			consensus, influence, iteration, didConverge := ppv.Compute(
-				job.Request.Matrix,
-				int(job.Request.NDelegate),
-				int(job.Request.NPolicy),
-				int(job.Request.NInterm),
-			)
+				consensus, influence, iteration, didConverge := ppv.Compute(
+					req.Matrix,
+					int(req.NDelegate),
+					int(req.NPolicy),
+					int(req.NInterm),
+				)
 
-			status = ppvpb.ComputeStatus{
-				Status:      ppvpb.ComputeStatus_FINISHED,
-				Consensus:   consensus,
-				Influence:   influence,
-				Iteration:   int32(iteration),
-				DidConverge: didConverge,
+				status = ppvpb.ComputeStatus{
+					Status:      ppvpb.ComputeStatus_FINISHED,
+					Consensus:   consensus,
+					Influence:   influence,
+					Iteration:   int32(iteration),
+					DidConverge: didConverge,
+				}
+
+				q.hub.Broadcast(job.ID, &status)
+
+			case *ppvpb.DotRequest:
+				dotStatus := ppvpb.DotStatus{Status: ppvpb.DotStatus_PROCESSING}
+				q.hub.BroadcastDot(job.ID, &dotStatus)
+
+				output := ppv.Dot(req.A, req.B, int(req.Size))
+
+				dotStatus = ppvpb.DotStatus{
+					Status: ppvpb.DotStatus_FINISHED,
+					Output: output,
+				}
+
+				q.hub.BroadcastDot(job.ID, &dotStatus)
+
+			default:
+				log.Printf("Unknown job type for job %s", job.ID)
 			}
-
-			q.hub.Broadcast(job.ID, &status)
-
 		}
 	}
 }
